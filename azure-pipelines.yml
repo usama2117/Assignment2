@@ -1,0 +1,48 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+- stage: Build
+  displayName: Build and package Lambda function
+  jobs:
+  - job: Build
+    displayName: Build job
+    steps:
+    - task: UsePythonVersion@0
+      displayName: 'Use Python 3.x'
+      inputs:
+        versionSpec: 3.x
+    - task: ArchiveFiles@2
+      displayName: 'Archive Lambda function files'
+      inputs:
+        rootFolderOrFile: '$(Build.SourcesDirectory)'
+        includeRootFolder: false
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifact'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: LambdaFunction
+
+- stage: Deploy
+  displayName: Deploy Lambda function to AWS
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy job
+    environment: 'usama-aws-environment'  # Replace with your AWS environment name
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AWSLambdaDeploy@1
+            displayName: 'Deploy Lambda function'
+            inputs:
+              regionName: 'us-east-1'  # Replace with your AWS region
+              s3Bucket: 'usama-lambda-bucket'  # Replace with your S3 bucket name
+              s3Key: '$(Build.BuildId).zip'
+              functionName: 'usama-lambda-function'  # Replace with your Lambda function name
+              deploymentTimeout: '5'
+              runtime: 'python3.9'  # Replace with your Lambda function's runtime
