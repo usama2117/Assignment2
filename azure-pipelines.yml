@@ -4,6 +4,16 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  - name: AWS_REGION
+    value: 'us-east-1'  # Replace with your AWS region
+  - name: S3_BUCKET
+    value: 'usama-lambda-bucket'  # Replace with your S3 bucket name
+  - name: LAMBDA_FUNCTION_NAME
+    value: 'usama-lambda-function'  # Replace with your Lambda function name
+  - name: LAMBDA_RUNTIME
+    value: 'python3.9'  # Replace with your Lambda function's runtime
+
 stages:
 - stage: Build
   displayName: Build and package Lambda function
@@ -14,7 +24,7 @@ stages:
     - task: UsePythonVersion@0
       displayName: 'Use Python 3.x'
       inputs:
-        versionSpec: 3.x
+        versionSpec: '3.*'
     - task: ArchiveFiles@2
       displayName: 'Archive Lambda function files'
       inputs:
@@ -29,6 +39,7 @@ stages:
 
 - stage: Deploy
   displayName: Deploy Lambda function to AWS
+  dependsOn: Build  # Ensure Build stage completes first
   jobs:
   - deployment: Deploy
     displayName: Deploy job
@@ -37,12 +48,12 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: AWSLambdaDeploy@1
+          - task: AWSLambdaDeploy@1.13.0
             displayName: 'Deploy Lambda function'
             inputs:
-              regionName: 'us-east-1'  # Replace with your AWS region
-              s3Bucket: 'usama-lambda-bucket'  # Replace with your S3 bucket name
+              regionName: ${{ variables.AWS_REGION }}
+              s3Bucket: ${{ variables.S3_BUCKET }}
               s3Key: '$(Build.BuildId).zip'
-              functionName: 'usama-lambda-function'  # Replace with your Lambda function name
-              deploymentTimeout: '5'
-              runtime: 'python3.9'  # Replace with your Lambda function's runtime
+              functionName: ${{ variables.LAMBDA_FUNCTION_NAME }}
+              deploymentTimeout: '300'  # Adjust the timeout as needed
+              runtime: ${{ variables.LAMBDA_RUNTIME }}
